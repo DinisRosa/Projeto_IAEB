@@ -1,0 +1,57 @@
+% Consultas de teste para merge.pl — copie e cole no SWI‑Prolog
+% -------------------------------
+% Carregar a base de dados (ajuste o caminho se necessário)
+consult('c:/Users/ASUS/Desktop/Ano Letivo 2025_26/IA/TRABALHO 1/code/merge.pl').
+
+% 1) Inspecionar um paciente (facto bruto)
+% Mostrar todos os campos do paciente 1
+paciente(1, Nome, DataNasc, Sexo, Morada, Altura, Peso, Historico).
+
+% 2) Ver o histórico antes da actualização
+paciente(1, _, _, _, _, _, _, HistoricoBefore).
+
+% 3) Actualizar diagnóstico do paciente 1 com base na consulta mais recente
+atualizar_diagnostico_paciente_por_tensao(1).
+
+% 4) Ver o histórico depois da actualização
+paciente(1, _, _, _, _, _, _, HistoricoAfter).
+
+% 5) Usar pesquisar/4 sobre campos do paciente
+pesquisar(paciente, 1, datanasc, R1).
+pesquisar(paciente, 1, sexo, R2).
+pesquisar(paciente, 1, all, Rall).
+
+% 6) Backtracking sobre campos (Campo variável)
+pesquisar(paciente, 1, Campo, Valor).
+% (Use `;` no REPL para obter o próximo resultado)
+
+% 7) Inspecionar uma consulta (facto bruto)
+consulta(1000, IdPaciente, DataConsulta, TempoDias, Sis, Dis, Freq).
+
+% 8) pesquisar/4 sobre consulta
+pesquisar(consulta, 1000, medicao_sistolica_mmHg, RSis).
+pesquisar(consulta, 1000, medicao_diastolica_mmHg, RDis).
+pesquisar(consulta, 1000, all, RConsultAll).
+
+% 9) Classificar uma leitura de tensão diretamente
+classificar_por_tensao(118, 76, Classificacao).
+classificar_por_tensao(140, 95, Classificacao2).
+
+% 10) Obter a consulta mais recente de um paciente
+consulta_mais_recente_paciente(1, IDc, Date, SisMost, DisMost, FreqMost).
+
+% 11) Testar imutabilidade de tensao_arterial (estas operações devem falhar)
+% Tentar adicionar uma nova tensao_arterial (deve ser bloqueado)
+evolucao(tensao_arterial(9999, exemplo, 0, 1, 0, 1)).
+% Tentar remover uma tensao_arterial existente (deve ser bloqueado)
+involucao(tensao_arterial(3001, otima, 0, 119, 0, 79)).
+
+% 12) Agregações úteis
+findall(ID, paciente(ID, _, _, _, _, _, _, _), AllPatients).
+findall(ID, (paciente(ID, _, _, _, _, _, _, H), H \= nulo_historico), PatientsWithHistory).
+
+% 13) Executar os testes PLUnit (opcional)
+% (Carrega e executa os testes definidos em code/testes_bd.pl)
+% consult('c:/Users/ASUS/Desktop/Ano Letivo 2025_26/IA/TRABALHO 1/code/testes_bd.pl'), run_tests.
+
+% Fim do ficheiro

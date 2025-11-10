@@ -3,51 +3,14 @@
 % ------------------------------------------------------------------------------------------------------
 
 % Declarações dinâmicas
-:- dynamic paciente/7.
+:- dynamic paciente/8.
 :- dynamic consulta/7.
 :- dynamic tensao_arterial/6.
+% Predicado para representar conhecimento incerto/alternativo (exceções)
+:- dynamic excecao/1.
 
-% Estrutura: paciente(ID, DataNasc, Sexo, Distrito, Altura_cm, Peso_kg, Diagnostico)
-
-% Pacientes Femininos (f)
-paciente(100001, date(20, 5, 1985), f, braga, 165, 62.5, nulo_diag).
-paciente(100002, date(15, 8, 2001), f, porto, 158, 55.2, nulo_diag).
-paciente(100003, date(1, 4, 2010), f, lisboa, 140, 40.0, nulo_diag).
-paciente(100004, date(19, 1, 1953), f, coimbra, 160, 70.3, nulo_diag).
-paciente(100005, date(5, 12, 2005), f, faro, 150, 48.6, nulo_diag).
-
-% Pacientes Masculinos (m)
-paciente(100006, date(3, 11, 1972), m, aveiro, 178, 85.0, nulo_diag).
-paciente(100007, date(28, 2, 1960), m, setubal, 172, 92.1, nulo_diag).
-paciente(100008, date(10, 9, 1995), m, viseu, 185, 75.8, nulo_diag).
-paciente(100009, date(25, 7, 1988), m, leiria, 175, 79.9, nulo_diag).
-paciente(100010, date(17, 6, 1977), m, santarem, 180, 88.7, nulo_diag).
-
-% Base de dados de Consultas em Prolog
-
-% Estrutura: consulta(ID_Consulta, ID_Paciente, DataConsulta, Tempo_desde_Ultima_Consulta_dias, Medicao_Sistolica_mmHg, Medicao_Diastolica_mmHg, Frequencia_Cardiaca_bpm)
-
-consulta(200001, 1, date(12, 3, 2024), nulo_val, 118, 76, 72).
-consulta(200002, 2, date(5, 4, 2024), nulo_val, 110, 70, 68).
-consulta(200003, 3, date(22, 5, 2024), nulo_val, 102, 66, 85).
-consulta(200004, 4, date(14, 6, 2024), nulo_val, 130, 84, 78).
-consulta(200005, 5, date(2, 7, 2024), nulo_val, 115, 72, 74).
-consulta(200006, 6, date(19, 8, 2024), nulo_val, 140, 90, 80).
-consulta(200007, 7, date(9, 9, 2024), nulo_val, 150, 95, 76).
-consulta(200008, 8, date(1, 10, 2024), nulo_val, 125, 82, 70).
-consulta(200009, 9, date(20, 11, 2024), nulo_val, 135, 88, 88).
-consulta(200010, 10, date(12, 12, 2024), nulo_val, 120, 78, 66).
-
-% Base de dados de Tensão Arterial
-% Estrutura: tensao_arterial(Id_ta, Classificacao, Sis_inf, Sis_sup, Dis_inf, Dis_sup)
-
-tensao_arterial(1, normal_otima,                      0, 119,   0,  79).
-tensao_arterial(2, normal,                   120, 129,  80,  84).
-tensao_arterial(3, normal_alta,              130, 139,  85,  89).
-tensao_arterial(4, hipertensao_grau1,        140, 159,  90,  99).
-tensao_arterial(5, hipertensao_grau2,        160, 179, 100, 109).
-tensao_arterial(6, hipertensao_grau3,        180, sem_limite, 110, sem_limite).
-tensao_arterial(7, hipertensao_sistolica_isolada, 140, sem_limite,   0,  89).
+% Use a BD definida em matrix.pl (factos de paciente/consulta/tensao_arterial)
+:- consult('c:/Users/ASUS/Desktop/Ano Letivo 2025_26/IA/TRABALHO 1/code/matrix.pl').
 
 % ------------------------------------------------------------------------------------------------------
 % Invariantes Estruturais e Referenciais
@@ -188,14 +151,15 @@ atualizar_diagnostico_paciente_por_tensao(ID_Paciente) :-
     number(Sistolica), number(Diastolica),
     classificar_por_tensao(Sistolica, Diastolica, Class),
     % obter paciente actual
-    paciente(ID_Paciente, DataNasc, Sexo, Distrito, Altura, Peso, _OldDiag),
+    % paciente/8: paciente(ID, Nome, DataNasc, Sexo, Morada, Altura, Peso, Historico)
+    paciente(ID_Paciente, Nome, DataNasc, Sexo, Morada, Altura, Peso, _OldDiag),
     % substituir diagnóstico: usa involucao/evolucao para manter consistência geral
-    involucao(paciente(ID_Paciente, DataNasc, Sexo, Distrito, Altura, Peso, _OldDiag)),
-    evolucao(paciente(ID_Paciente, DataNasc, Sexo, Distrito, Altura, Peso, Class)).
+    involucao(paciente(ID_Paciente, Nome, DataNasc, Sexo, Morada, Altura, Peso, _OldDiag)),
+    evolucao(paciente(ID_Paciente, Nome, DataNasc, Sexo, Morada, Altura, Peso, Class)).
 
 % Variante que actualiza todos os pacientes que têm consultas com valores válidos
 atualizar_todos_pacientes_por_tensao :-
-    findall(ID, paciente(ID, _, _, _, _, _, _), IDs),
+    findall(ID, paciente(ID, _, _, _, _, _, _, _), IDs),
     atualizar_lista_pacientes(IDs).
 
 atualizar_lista_pacientes([]).
@@ -213,36 +177,44 @@ atualizar_lista_pacientes([H|T]) :-
 %   for consulta: DataConsulta, Tempo_desde_Ultima_Consulta_dias, Medicao_Sistolica_mmHg, Medicao_Diastolica_mmHg, Frequencia_Cardiaca_bpm
 % Res = value or 'desconhecido' if the value is nulo or the term is missing
 
-% Helper: normaliza valores nulos/vars para 'desconhecido'
-valor_ou_desconhecido(V, desconhecido) :-
-    ( var(V) ; V == nulo_val ; V == nulo_diag ), !.
-valor_ou_desconhecido(V, V).
+% Helper: detecta se existe uma excecao para um paciente/consulta com o dado ID
+has_excecao_paciente(ID) :-
+    excecao(paciente(ID, _, _, _, _, _, _, _)).
+has_excecao_consulta(ID) :-
+    excecao(consulta(ID, _, _, _, _, _, _)).
 
-% pesquisar para paciente
+% Helper: decide resultado quando um valor existe mas é nulo/var
+decide_valor(Val, ID, paciente, Res) :-
+    ( var(Val) ; Val == nulo_val ; Val == nulo_diag ; Val == nulo_historico ) -> ( has_excecao_paciente(ID) -> Res = incerto ; Res = desconhecido ) ; Res = Val.
+decide_valor(Val, ID, consulta, Res) :-
+    ( var(Val) ; Val == nulo_val ; Val == nulo_diag ) -> ( has_excecao_consulta(ID) -> Res = incerto ; Res = desconhecido ) ; Res = Val.
+
+% pesquisar para paciente (retorna incerto se existir excecao para o mesmo ID)
+% paciente/8: paciente(ID, Nome, DataNasc, Sexo, Morada, Altura, Peso, Historico)
 pesquisar(paciente, ID, DataNasc, Res) :-
-    ( paciente(ID, DataNascVal, _, _, _, _, _) -> valor_ou_desconhecido(DataNascVal, Res) ; Res = desconhecido ).
+    ( paciente(ID, _Nome, DataNascVal, _, _, _, _, _) -> decide_valor(DataNascVal, ID, paciente, Res) ; ( has_excecao_paciente(ID) -> Res = incerto ; Res = desconhecido ) ).
 pesquisar(paciente, ID, Sexo, Res) :-
-    ( paciente(ID, _, SexoVal, _, _, _, _) -> valor_ou_desconhecido(SexoVal, Res) ; Res = desconhecido ).
+    ( paciente(ID, _, _, SexoVal, _, _, _, _) -> decide_valor(SexoVal, ID, paciente, Res) ; ( has_excecao_paciente(ID) -> Res = incerto ; Res = desconhecido ) ).
 pesquisar(paciente, ID, Distrito, Res) :-
-    ( paciente(ID, _, _, DistritoVal, _, _, _) -> valor_ou_desconhecido(DistritoVal, Res) ; Res = desconhecido ).
+    ( paciente(ID, _, _, _, DistritoVal, _, _, _) -> decide_valor(DistritoVal, ID, paciente, Res) ; ( has_excecao_paciente(ID) -> Res = incerto ; Res = desconhecido ) ).
 pesquisar(paciente, ID, Altura_cm, Res) :-
-    ( paciente(ID, _, _, _, AltVal, _, _) -> valor_ou_desconhecido(AltVal, Res) ; Res = desconhecido ).
+    ( paciente(ID, _, _, _, _, AltVal, _, _) -> decide_valor(AltVal, ID, paciente, Res) ; ( has_excecao_paciente(ID) -> Res = incerto ; Res = desconhecido ) ).
 pesquisar(paciente, ID, Peso_kg, Res) :-
-    ( paciente(ID, _, _, _, _, PesoVal, _) -> valor_ou_desconhecido(PesoVal, Res) ; Res = desconhecido ).
+    ( paciente(ID, _, _, _, _, _, PesoVal, _) -> decide_valor(PesoVal, ID, paciente, Res) ; ( has_excecao_paciente(ID) -> Res = incerto ; Res = desconhecido ) ).
 pesquisar(paciente, ID, Diagnostico, Res) :-
-    ( paciente(ID, _, _, _, _, _, DiagVal) -> valor_ou_desconhecido(DiagVal, Res) ; Res = desconhecido ).
+    ( paciente(ID, _, _, _, _, _, _, DiagVal) -> decide_valor(DiagVal, ID, paciente, Res) ; ( has_excecao_paciente(ID) -> Res = incerto ; Res = desconhecido ) ).
 
-% pesquisar para consulta
+% pesquisar para consulta (retorna incerto se existir excecao para o mesmo ID)
 pesquisar(consulta, ID, DataConsulta, Res) :-
-    ( consulta(ID, _, DataVal, _, _, _, _) -> valor_ou_desconhecido(DataVal, Res) ; Res = desconhecido ).
+    ( consulta(ID, _, DataVal, _, _, _, _) -> decide_valor(DataVal, ID, consulta, Res) ; ( has_excecao_consulta(ID) -> Res = incerto ; Res = desconhecido ) ).
 pesquisar(consulta, ID, Tempo_desde_Ultima_Consulta_dias, Res) :-
-    ( consulta(ID, _, _, TempoVal, _, _, _) -> valor_ou_desconhecido(TempoVal, Res) ; Res = desconhecido ).
+    ( consulta(ID, _, _, TempoVal, _, _, _) -> decide_valor(TempoVal, ID, consulta, Res) ; ( has_excecao_consulta(ID) -> Res = incerto ; Res = desconhecido ) ).
 pesquisar(consulta, ID, Medicao_Sistolica_mmHg, Res) :-
-    ( consulta(ID, _, _, _, SisVal, _, _) -> valor_ou_desconhecido(SisVal, Res) ; Res = desconhecido ).
+    ( consulta(ID, _, _, _, SisVal, _, _) -> decide_valor(SisVal, ID, consulta, Res) ; ( has_excecao_consulta(ID) -> Res = incerto ; Res = desconhecido ) ).
 pesquisar(consulta, ID, Medicao_Diastolica_mmHg, Res) :-
-    ( consulta(ID, _, _, _, _, DisVal, _) -> valor_ou_desconhecido(DisVal, Res) ; Res = desconhecido ).
+    ( consulta(ID, _, _, _, _, DisVal, _) -> decide_valor(DisVal, ID, consulta, Res) ; ( has_excecao_consulta(ID) -> Res = incerto ; Res = desconhecido ) ).
 pesquisar(consulta, ID, Frequencia_Cardiaca_bpm, Res) :-
-    ( consulta(ID, _, _, _, _, _, FreqVal) -> valor_ou_desconhecido(FreqVal, Res) ; Res = desconhecido ).
+    ( consulta(ID, _, _, _, _, _, FreqVal) -> decide_valor(FreqVal, ID, consulta, Res) ; ( has_excecao_consulta(ID) -> Res = incerto ; Res = desconhecido ) ).
 
 % Caso Donde não seja reconhecido
 pesquisar(Donde, _, _, desconhecido) :-
