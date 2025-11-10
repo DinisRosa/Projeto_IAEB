@@ -138,15 +138,24 @@ escolhe_prioridade([_|T], Lista, C) :- escolhe_prioridade(T, Lista, C).
 % Em vez de substituir um diagnóstico único, adiciona um par [DataConsulta, Class]
 % no início da lista de histórico. Se o histórico for `nulo_historico`, cria-se a
 % lista com uma entrada.
+% Atualiza o historial do paciente com [DataConsulta, Diagnostico]
+% Regras para classificação quando nem todos os valores estão presentes:
+% - ambos os valores (sistólica e diastólica) são números -> classifica normalmente
+% - apenas um dos valores está presente (o outro é nulo ou não numérico) -> 'impreciso'
+% - nenhum dos valores está presente -> 'incerto'
 atualizar_diagnostico_paciente_por_tensao(ID_Paciente) :-
     consulta_mais_recente_paciente(ID_Paciente, _ID_Consulta, DataConsulta, Sistolica, Diastolica, _Freq),
-    Sistolica \== nulo_val,
-    Diastolica \== nulo_val,
-    number(Sistolica), number(Diastolica),
-    classificar_por_tensao(Sistolica, Diastolica, Class),
-    % obter o paciente e o historial atual
+    % obter paciente e historial atual antes de decidir
     paciente(ID_Paciente, Nome, DataNasc, Sexo, Morada, Altura, Peso, OldHistorico),
-    % preparar novo historial: se era nulo_historico -> criar lista, senão acrescentar
+    % decidir classificação com base na disponibilidade dos valores
+    ( number(Sistolica), number(Diastolica) ->
+        ( classificar_por_tensao(Sistolica, Diastolica, Class) -> true ; Class = incerto )
+    ; ( (number(Sistolica), \+ number(Diastolica)) ; (\+ number(Sistolica), number(Diastolica)) ) ->
+        Class = impreciso
+    ;
+        Class = incerto
+    ),
+    % preparar novo historial: se era nulo_historico -> criar lista, senão acrescentar no início
     ( OldHistorico == nulo_historico -> NewHistorico = [[DataConsulta, Class]] ; NewHistorico = [[DataConsulta, Class]|OldHistorico] ),
     % substituir o termo paciente antigo pelo novo com o historial actualizado
     involucao(paciente(ID_Paciente, Nome, DataNasc, Sexo, Morada, Altura, Peso, OldHistorico)),
